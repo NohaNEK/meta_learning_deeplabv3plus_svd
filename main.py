@@ -164,28 +164,34 @@ def get_dataset(opts):
                         split='val', transform=val_transform)
         
     return train_dst, val_dst 
-def add_gta_infos_in_tensorboard(writer,imgs,labels,coco_imgs,rec_imgs,outputs,cur_itrs,denorm,train_loader):
+def add_gta_infos_in_tensorboard(writer,imgs,labels,coco_imgs,rec_imgs,meta_test_labels,outputs,cur_itrs,denorm,train_loader):
+        
         img=imgs[0].detach().cpu().numpy()
         img=(denorm(img)*255).astype(np.uint8)
         writer.add_image('gta_image',img,cur_itrs,dataformats='CHW')
 
-        rec_img=rec_imgs[0].detach().cpu().numpy()
-        rec_img=(denorm(rec_img)*255).astype(np.uint8)
-        writer.add_image('gta_randomized_image',rec_img,cur_itrs,dataformats='CHW')
+        lbs=labels[0].detach().cpu().numpy()
+        lbs=train_loader.dataset.decode_target(lbs).astype('uint8')
+        writer.add_image('gta_ground_truth',lbs,cur_itrs,dataformats='HWC')
 
+      
+      
         coco_img = coco_imgs[0].detach().cpu().numpy()
         coco_img = (denorm(coco_img)*255).astype(np.uint8)
         writer.add_image('coco_image',coco_img,cur_itrs,dataformats='CHW')
         
-        
-        lbs=labels[0].detach().cpu().numpy()
+        rec_img=rec_imgs[0].detach().cpu().numpy()
+        rec_img=(denorm(rec_img)*255).astype(np.uint8)
+        writer.add_image('gta_randomized_image',rec_img,cur_itrs,dataformats='CHW')
+
+        lbs=meta_test_labels[0].detach().cpu().numpy()
         lbs=train_loader.dataset.decode_target(lbs).astype('uint8')
-        writer.add_image('gta_ground_truth',lbs,cur_itrs,dataformats='HWC')
+        writer.add_image('gta_randomized_ground_truth',lbs,cur_itrs,dataformats='HWC')
         
         pred=outputs.detach().max(1)[1].cpu().numpy()
         pred = train_loader.dataset.decode_target(pred[0]).astype('uint8')
-        writer.add_image('gta_pred',pred,cur_itrs,dataformats='HWC')
-        
+        writer.add_image('gta_pred_meta_test',pred,cur_itrs,dataformats='HWC')
+
        
 
         
@@ -291,21 +297,41 @@ def writer_add_features(writer, name, tensor_feat, iterations):
     writer.add_image(name, img_grid, iterations, dataformats='HWC')
 
 
-def get_updated_network(old, new, lr, load=False): #lr_inner =5e-4 ,  outer_lr=2e-3,
-    updated_theta = {}
-    state_dicts = old.state_dict()
-    param_dicts = dict(old.named_parameters())
+# def get_updated_network(old, new, lr, load=False): #lr_inner =5e-4 ,  outer_lr=2e-3,
+#     updated_theta = {}
+#     state_dicts = old.state_dict()
+#     param_dicts = dict(old.named_parameters())
 
-    for i, (k, v) in enumerate(state_dicts.items()):
-        if k in param_dicts.keys() and param_dicts[k].grad is not None:
-            updated_theta[k] = param_dicts[k] - lr * param_dicts[k].grad
-        else:
-            updated_theta[k] = state_dicts[k]
-    if load:
-        new.load_state_dict(updated_theta)
-    else:
-        new = put_theta(new, updated_theta)
-    return new
+#     for i, (k, v) in enumerate(state_dicts.items()):
+#         if k in param_dicts.keys() and param_dicts[k].grad is not None:
+#             updated_theta[k] = param_dicts[k] - lr * param_dicts[k].grad
+#         else:
+#             updated_theta[k] = state_dicts[k]
+#     if load:
+#         new.load_state_dict(updated_theta)
+#     else:
+#         new = put_theta(new, updated_theta)
+#     return new
+# def put_theta(model, theta):
+#     def k_param_fn(tmp_model, name=None):
+#         if len(tmp_model._modules) != 0:
+#             for (k, v) in tmp_model._modules.items():
+#                 if name is None:
+#                     k_param_fn(v, name=str(k))
+#                 else:
+#                     k_param_fn(v, name=str(name + '.' + k))
+#         else:
+#             for (k, v) in tmp_model._parameters.items():
+#                 if not isinstance(v, torch.Tensor):
+#                     continue
+#                 # print("K",k, name)
+#                 tmp_model._parameters[k] = theta[str(name + '.' + k)]
+
+#     k_param_fn(model)
+#     return model   
+
+
+
 def put_theta(model, theta):
     def k_param_fn(tmp_model, name=None):
         if len(tmp_model._modules) != 0:
@@ -318,11 +344,31 @@ def put_theta(model, theta):
             for (k, v) in tmp_model._parameters.items():
                 if not isinstance(v, torch.Tensor):
                     continue
-                print("K",k, name)
                 tmp_model._parameters[k] = theta[str(name + '.' + k)]
 
     k_param_fn(model)
-    return model   
+    return model
+
+
+def get_updated_network(old, new, lr, load=False):
+    updated_theta = {}
+    state_dicts = old.state_dict()
+    param_dicts = dict(old.named_parameters())
+    
+
+    for i, (k, v) in enumerate(state_dicts.items()):
+        if k in param_dicts.keys() and param_dicts[k].grad is not None:
+
+            updated_theta[k] = param_dicts[k] - lr * param_dicts[k].grad
+           
+        else:
+            updated_theta[k] = state_dicts[k]
+    if load:
+        new.load_state_dict(updated_theta)
+    else:
+        new = put_theta(new, updated_theta)
+    return new
+
 def main():
     opts = get_argparser().parse_args()
     if opts.dataset.lower() == 'voc':
@@ -344,7 +390,7 @@ def main():
     torch.manual_seed(opts.random_seed)
     np.random.seed(opts.random_seed)
     random.seed(opts.random_seed)
-    writer = SummaryWriter("/media/fahad/Crucial X8/deeplabv3plus/Deeplabv3plus_baseline/logs2/R101_META_Learning_svd_s_coco")#original_baseline
+    writer = SummaryWriter("/media/fahad/Crucial X8/deeplabv3plus/Deeplabv3plus_baseline/logs2/R101_META_Learning_svd_s0_s_coco")#original_baseline
 
     # Setup dataloader
     if opts.dataset == 'voc' and not opts.crop_val:
@@ -362,10 +408,11 @@ def main():
 
     # Set up model (all models are 'constructed at network.modeling)
     model = network.modeling.__dict__[opts.model](num_classes=opts.num_classes, output_stride=opts.output_stride)
+    clone_model = network.modeling.__dict__[opts.model](num_classes=opts.num_classes, output_stride=opts.output_stride)
     if opts.separable_conv and 'plus' in opts.model:
         network.convert_to_separable_conv(model.classifier)
     utils.set_bn_momentum(model.backbone, momentum=0.01)
-    clone_model =model
+    # clone_model =model
 
 
     # Set up metrics
@@ -428,7 +475,9 @@ def main():
     else:
         print("[!] Retrain")
         model = nn.DataParallel(model)
+        clone_model= nn.DataParallel(clone_model)
         model.to(device)
+        clone_model.to(device)
 
     # ==========   Train Loop   ==========#
     vis_sample_id = np.random.randint(0, len(val_loader), opts.vis_num_samples,
@@ -444,13 +493,24 @@ def main():
 
     interval_loss_ds = 0
     interval_loss_dg = 0
-    inner_lr=5e-4
+    inner_lr= 5e-4
     # outer_lr=2e-3
     idx=4
     while True:  # cur_itrs < opts.total_itrs:
         # =====  Train  =====
         model.train()
         cur_epochs += 1
+        id=0
+        # print("########### initial param of original model ##########")
+        # for n, p in model.named_parameters():
+        #     print(n,p[id])
+        #     print(p.shape)
+        #     if p.grad !=  None:
+        #         print("grad",p.grad[id])
+        #     else:
+        #         print("grad",p.grad)
+        #     break
+
         for (images, labels,coco_img) in train_loader:
             cur_itrs += 1
             #split batch into meta-train (8imgs) & meta-test (16 imgs)
@@ -470,31 +530,59 @@ def main():
             outputs,_ = model(meta_train_imgs)
             ds_loss = criterion(outputs, meta_train_labels)
             ds_loss.backward(retain_graph=True)
+            # print("########### param of original model after ds backward ##########")
+            # for n, p in model.named_parameters():
+            #     print(n,p[id])
+        
+            #     if p.grad !=  None:
+            #         print("grad",p.grad[id])
+            #     else:
+            #         print("grad",p.grad)
+            #     break
+
+
             np_loss = ds_loss.detach().cpu().numpy()
             interval_loss_ds += np_loss
             del ds_loss
 
-
-            ###### copy model parameters to clone model 
-            for param_model,param_clone in zip(model.parameters(), clone_model.parameters()):
+            clone_model = get_updated_network(model,clone_model,inner_lr)
+            # ###### copy model parameters to clone model 
+            # for param_model,param_clone in zip(model.parameters(), clone_model.parameters()):
         
-                                if param_model.grad is not None:
-                                     param_clone = param_model - inner_lr*param_model.grad
-                                else :
-                                    param_clone = param_model
-            # for (k, v) in clone_model._parameters.items():
-            #     print('k : ',k)
-            #     print("v : ",v)
+            #                     if param_model.grad is not None:
+            #                          param_clone = param_model - inner_lr*param_model.grad
+            #                          param_clone.grad= None
+            #                     else :
+            #                         param_clone = param_model
+            #                         param_clone.grad= None
+            # print("########### param of clone_model  after copy & update params ##########")
+            # for n, p in clone_model.named_parameters():
+            #     print(n,p[id])
+        
+            #     if p.grad !=  None:
+            #         print("grad",p.grad[id])
+            #     else:
+            #         print("grad",p.grad)
+            #     break
 
-            
+            # print("########### param of model  after copy & update params ##########")
+            # for n, p in model.named_parameters():
+            #     print(n,p[id])
+        
+            #     if p.grad !=  None:
+            #         print("grad",p.grad[id])
+            #     else:
+            #         print("grad",p.grad)
+            #     break
 
-            
+
 
             ####  apply svd on gta meta-test images 
             u,s,v = torch.linalg.svd(meta_test_imgs)
             
             s2= torch.linalg.svdvals(coco_img[idx:]) 
-            rec_imgs = u @ torch.diag_embed(s2) @ v
+            s3 = torch.cat([s[:,:,0].unsqueeze(2),s2[:,:,1:]],dim=2)
+            rec_imgs = u @ torch.diag_embed(s3) @ v
             rec_imgs=rec_imgs.to(device,dtype=torch.float32)
             meta_test_labels = meta_test_labels.to(device, dtype=torch.long)
 
@@ -504,14 +592,56 @@ def main():
 
             #update the original network (model in our case)
             dg_loss.backward()
+
+            # print("########### param of clone_model  after dg backward ##########")
+            # for n, p in clone_model.named_parameters():
+            #     print(n,p[id])
+        
+            #     if p.grad !=  None:
+            #         print("grad",p.grad[id])
+            #     else:
+            #         print("grad",p.grad)
+            #     break
+            
+            # print("########### param of model  after dg backward ##########")
+            # for n, p in model.named_parameters():
+            #     print(n,p[id])
+        
+            #     if p.grad !=  None:
+            #         print("grad",p.grad[id])
+            #     else:
+            #         print("grad",p.grad)
+            #     break
+
             optimizer.step()
+
+            # print("########### param of clone_model  after optimizer ##########")
+            # for n, p in clone_model.named_parameters():
+            #     print(n,p[id])
+        
+            #     if p.grad !=  None:
+            #         print("grad",p.grad[id])
+            #     else:
+            #         print("grad",p.grad)
+            #     break
+
+            # print("########### param of model  after optimizer ##########")
+            # for n, p in model.named_parameters():
+            #     print(n,p[id])
+        
+            #     if p.grad !=  None:
+            #         print("grad",p.grad[id])
+            #     else:
+            #         print("grad",p.grad)
+            #     break
+
 
             
             np_loss = dg_loss.detach().cpu().numpy()
             interval_loss_dg += np_loss
             del dg_loss
 
-
+   
             if (cur_itrs) % 10 == 0:
                 interval_loss_ds = interval_loss_ds / 10
                 interval_loss_dg = interval_loss_dg / 10
@@ -525,7 +655,7 @@ def main():
             if (cur_itrs) % 100 == 0: 
                 writer.add_scalar('LR_Backbone',scheduler.get_lr()[0],cur_itrs)
                 writer.add_scalar('LR_classifier',scheduler.get_lr()[1],cur_itrs)
-                add_gta_infos_in_tensorboard(writer,images,labels,coco_img,rec_imgs,outputs,cur_itrs,denorm,train_loader)
+                add_gta_infos_in_tensorboard(writer,meta_train_imgs,meta_train_labels,coco_img,rec_imgs,meta_test_labels,outputs,cur_itrs,denorm,train_loader)
         
             if (cur_itrs) % opts.val_interval == 0:
                 save_ckpt('checkpoints/latest_%s_%s_os%d.pth' %
