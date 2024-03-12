@@ -390,7 +390,7 @@ def main():
     torch.manual_seed(opts.random_seed)
     np.random.seed(opts.random_seed)
     random.seed(opts.random_seed)
-    writer = SummaryWriter("/media/fahad/Crucial X8/deeplabv3plus/Deeplabv3plus_baseline/logs2/R101_META_Learning_svd_s0_s_coco")#original_baseline
+    writer = SummaryWriter("/media/fahad/Crucial X8/deeplabv3plus/Deeplabv3plus_baseline/logs2/R101_META_Learning_svd_s_coco_v2")#original_baseline
 
     # Setup dataloader
     if opts.dataset == 'voc' and not opts.crop_val:
@@ -581,8 +581,8 @@ def main():
             u,s,v = torch.linalg.svd(meta_test_imgs)
             
             s2= torch.linalg.svdvals(coco_img[idx:]) 
-            s3 = torch.cat([s[:,:,0].unsqueeze(2),s2[:,:,1:]],dim=2)
-            rec_imgs = u @ torch.diag_embed(s3) @ v
+            #s3 = torch.cat([s[:,:,0].unsqueeze(2),s2[:,:,1:]],dim=2)
+            rec_imgs = u @ torch.diag_embed(s2) @ v
             rec_imgs=rec_imgs.to(device,dtype=torch.float32)
             meta_test_labels = meta_test_labels.to(device, dtype=torch.long)
 
