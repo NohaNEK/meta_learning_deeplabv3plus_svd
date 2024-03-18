@@ -176,17 +176,17 @@ def add_gta_infos_in_tensorboard(writer,imgs,labels,coco_imgs,rec_imgs,meta_test
 
       
       
-        coco_img = coco_imgs[0].detach().cpu().numpy()
-        coco_img = (denorm(coco_img)*255).astype(np.uint8)
-        writer.add_image('coco_image',coco_img,cur_itrs,dataformats='CHW')
+        # coco_img = coco_imgs[0].detach().cpu().numpy()
+        # coco_img = (denorm(coco_img)*255).astype(np.uint8)
+        # writer.add_image('coco_image',coco_img,cur_itrs,dataformats='CHW')
         
         rec_img=rec_imgs[0].detach().cpu().numpy()
         rec_img=(denorm(rec_img)*255).astype(np.uint8)
-        writer.add_image('gta_randomized_image',rec_img,cur_itrs,dataformats='CHW')
+        writer.add_image('gta_test_image',rec_img,cur_itrs,dataformats='CHW')
 
         lbs=meta_test_labels[0].detach().cpu().numpy()
         lbs=train_loader.dataset.decode_target(lbs).astype('uint8')
-        writer.add_image('gta_randomized_ground_truth',lbs,cur_itrs,dataformats='HWC')
+        writer.add_image('gta_test_truth',lbs,cur_itrs,dataformats='HWC')
         
         pred=outputs.detach().max(1)[1].cpu().numpy()
         pred = train_loader.dataset.decode_target(pred[0]).astype('uint8')
@@ -390,7 +390,7 @@ def main():
     torch.manual_seed(opts.random_seed)
     np.random.seed(opts.random_seed)
     random.seed(opts.random_seed)
-    writer = SummaryWriter("/media/fahad/Crucial X8/deeplabv3plus/Deeplabv3plus_baseline/logs2/R101_META_Learning_svd_s_coco_v2")#original_baseline
+    writer = SummaryWriter("/media/fahad/Crucial X8/deeplabv3plus/Deeplabv3plus_baseline/logs2/R101_META_Learning_gta")#original_baseline
 
     # Setup dataloader
     if opts.dataset == 'voc' and not opts.crop_val:
@@ -459,9 +459,13 @@ def main():
         # https://github.com/VainF/DeepLabV3Plus-Pytorch/issues/8#issuecomment-605601402, @PytaichukBohdan
         checkpoint = torch.load(opts.ckpt, map_location=torch.device('cpu'))
         model.load_state_dict(checkpoint["model_state"])
-        # model = nn.DataParallel(model)
+        model = nn.DataParallel(model)
+
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         model.to(device)
+
+        clone_model= nn.DataParallel(clone_model)
+        clone_model.to(device)
         if opts.continue_training:
             print(checkpoint)
             checkpoint['scheduler_state']['max_iters']= opts.total_itrs
@@ -470,6 +474,7 @@ def main():
             cur_itrs = checkpoint["cur_itrs"]
             best_score = checkpoint['best_score']
             print("Training state restored from %s" % opts.ckpt)
+
         print("Model restored from %s" % opts.ckpt)
         del checkpoint  # free memory
     else:
@@ -511,7 +516,7 @@ def main():
         #         print("grad",p.grad)
         #     break
 
-        for (images, labels,coco_img) in train_loader:
+        for (images, labels) in train_loader:
             cur_itrs += 1
             #split batch into meta-train (8imgs) & meta-test (16 imgs)
             meta_train_imgs=images[:idx]
@@ -578,16 +583,16 @@ def main():
 
 
             ####  apply svd on gta meta-test images 
-            u,s,v = torch.linalg.svd(meta_test_imgs)
+            # u,s,v = torch.linalg.svd(meta_test_imgs)
             
-            s2= torch.linalg.svdvals(coco_img[idx:]) 
+            # s2= torch.linalg.svdvals(coco_img[idx:]) 
             #s3 = torch.cat([s[:,:,0].unsqueeze(2),s2[:,:,1:]],dim=2)
-            rec_imgs = u @ torch.diag_embed(s2) @ v
-            rec_imgs=rec_imgs.to(device,dtype=torch.float32)
+            # rec_imgs = u @ torch.diag_embed(s2) @ v
+            meta_test_imgs=meta_test_imgs.to(device,dtype=torch.float32)
             meta_test_labels = meta_test_labels.to(device, dtype=torch.long)
 
             #Perform Meta-Test on rec_imgs 
-            outputs,_ = clone_model(rec_imgs)
+            outputs,_ = clone_model(meta_test_imgs)
             dg_loss = criterion(outputs, meta_test_labels)
 
             #update the original network (model in our case)
@@ -655,7 +660,7 @@ def main():
             if (cur_itrs) % 100 == 0: 
                 writer.add_scalar('LR_Backbone',scheduler.get_lr()[0],cur_itrs)
                 writer.add_scalar('LR_classifier',scheduler.get_lr()[1],cur_itrs)
-                add_gta_infos_in_tensorboard(writer,meta_train_imgs,meta_train_labels,coco_img,rec_imgs,meta_test_labels,outputs,cur_itrs,denorm,train_loader)
+                add_gta_infos_in_tensorboard(writer,meta_train_imgs,meta_train_labels,meta_test_imgs,meta_test_imgs,meta_test_labels,outputs,cur_itrs,denorm,train_loader)
         
             if (cur_itrs) % opts.val_interval == 0:
                 save_ckpt('checkpoints/latest_%s_%s_os%d.pth' %
