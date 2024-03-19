@@ -7,8 +7,8 @@ import argparse
 import numpy as np
 
 from torch.utils import data
-from datasets import VOCSegmentation, Cityscapes, GTA, GTAV, COCO
-from utils import ext_transforms as et
+from datasets import VOCSegmentation, Cityscapes, GTA, GTA_SVD, COCO
+from utils import ext_transforms_2 as et
 from metrics import StreamSegMetrics
 
 import torch
@@ -29,7 +29,7 @@ def get_argparser():
     parser = argparse.ArgumentParser()
 
     # Datset Options
-    parser.add_argument("--data_root", type=str, default='/media/fahad/Crucial X8/Mohamed/GTA/',
+    parser.add_argument("--data_root", type=str, default='/media/fahad/DATA_2/GTA5',
                         help="path to Dataset")
     parser.add_argument("--dataset", type=str, default='voc',
                         choices=['voc', 'cityscapes'], help='Name of dataset')
@@ -60,7 +60,7 @@ def get_argparser():
     parser.add_argument("--step_size", type=int, default=10000)
     parser.add_argument("--crop_val", action='store_true', default=False,
                         help='crop validation (default: False)')
-    parser.add_argument("--batch_size", type=int, default=10,
+    parser.add_argument("--batch_size", type=int, default=4,
                         help='batch size (default: 16)')
     parser.add_argument("--val_batch_size", type=int, default=6,
                         help='batch size for validation (default: 4)')
@@ -135,7 +135,7 @@ def get_dataset(opts):
 
     if opts.dataset == 'cityscapes':
         train_transform = et.ExtCompose([
-            et.ExtResize(size= (1914,1052) ),
+            et.ExtResize(size= (1052,1914) ),
             et.ExtRandomCrop(size=(768,768)),
             et.ExtRandomHorizontalFlip(),
            
@@ -158,21 +158,26 @@ def get_dataset(opts):
 
         
 
-        train_dst = GTA(root=opts.data_root,
+        train_dst = GTA_SVD(root=opts.data_root,
                                split='all', transform=train_transform)
         val_dst = Cityscapes(root='/media/fahad/Crucial X8/datasets/cityscapes/',
                         split='val', transform=val_transform)
         
     return train_dst, val_dst 
-def add_gta_infos_in_tensorboard(writer,imgs,labels,coco_imgs,rec_imgs,meta_test_labels,outputs,cur_itrs,denorm,train_loader):
+def add_gta_infos_in_tensorboard(writer,imgs,labels,outputs_train,meta_test_imgs,meta_test_labels,outputs,cur_itrs,denorm,train_loader):
         
-        img=imgs[0].detach().cpu().numpy()
+        i=1
+        img=imgs[i].detach().cpu().numpy()
         img=(denorm(img)*255).astype(np.uint8)
         writer.add_image('gta_image',img,cur_itrs,dataformats='CHW')
 
-        lbs=labels[0].detach().cpu().numpy()
+        lbs=labels[i].detach().cpu().numpy()
         lbs=train_loader.dataset.decode_target(lbs).astype('uint8')
         writer.add_image('gta_ground_truth',lbs,cur_itrs,dataformats='HWC')
+
+        pred=outputs_train.detach().max(1)[1].cpu().numpy()
+        pred = train_loader.dataset.decode_target(pred[i]).astype('uint8')
+        writer.add_image('gta_pred',pred,cur_itrs,dataformats='HWC')
 
       
       
@@ -180,7 +185,7 @@ def add_gta_infos_in_tensorboard(writer,imgs,labels,coco_imgs,rec_imgs,meta_test
         # coco_img = (denorm(coco_img)*255).astype(np.uint8)
         # writer.add_image('coco_image',coco_img,cur_itrs,dataformats='CHW')
         
-        rec_img=rec_imgs[0].detach().cpu().numpy()
+        rec_img=meta_test_imgs[0].detach().cpu().numpy()
         rec_img=(denorm(rec_img)*255).astype(np.uint8)
         writer.add_image('gta_test_image',rec_img,cur_itrs,dataformats='CHW')
 
@@ -390,7 +395,7 @@ def main():
     torch.manual_seed(opts.random_seed)
     np.random.seed(opts.random_seed)
     random.seed(opts.random_seed)
-    writer = SummaryWriter("/media/fahad/Crucial X8/deeplabv3plus/Deeplabv3plus_baseline/logs2/R101_META_Learning_gta")#original_baseline
+    writer = SummaryWriter("/media/fahad/Crucial X8/deeplabv3plus/Deeplabv3plus_baseline/logs2/R101_M_L_svd_same_batch")#original_baseline
 
     # Setup dataloader
     if opts.dataset == 'voc' and not opts.crop_val:
@@ -500,7 +505,7 @@ def main():
     interval_loss_dg = 0
     inner_lr= 5e-4
     # outer_lr=2e-3
-    idx=4
+    idx=5
     while True:  # cur_itrs < opts.total_itrs:
         # =====  Train  =====
         model.train()
@@ -516,13 +521,13 @@ def main():
         #         print("grad",p.grad)
         #     break
 
-        for (images, labels) in train_loader:
+        for (meta_train_imgs, meta_train_labels,meta_test_imgs,meta_test_labels) in train_loader:
             cur_itrs += 1
             #split batch into meta-train (8imgs) & meta-test (16 imgs)
-            meta_train_imgs=images[:idx]
-            meta_train_labels =labels[:idx]
-            meta_test_labels =labels[idx:]
-            meta_test_imgs=images[idx:]
+            # meta_train_imgs=images[:idx]
+            # meta_train_labels =labels[:idx]
+            # meta_test_labels =labels[idx:]
+            # meta_test_imgs=images[idx:]
             #split batch into meta-train & meta-test images
             # print("meta_train_imgs :",meta_train_imgs.shape)
             # print("meta_test_imgs :",meta_test_imgs.shape)
@@ -532,8 +537,8 @@ def main():
 
             #Perform Meta-Train
             optimizer.zero_grad(set_to_none=True)
-            outputs,_ = model(meta_train_imgs)
-            ds_loss = criterion(outputs, meta_train_labels)
+            outputs_train,_ = model(meta_train_imgs)
+            ds_loss = criterion(outputs_train, meta_train_labels)
             ds_loss.backward(retain_graph=True)
             # print("########### param of original model after ds backward ##########")
             # for n, p in model.named_parameters():
@@ -581,13 +586,6 @@ def main():
             #     break
 
 
-
-            ####  apply svd on gta meta-test images 
-            # u,s,v = torch.linalg.svd(meta_test_imgs)
-            
-            # s2= torch.linalg.svdvals(coco_img[idx:]) 
-            #s3 = torch.cat([s[:,:,0].unsqueeze(2),s2[:,:,1:]],dim=2)
-            # rec_imgs = u @ torch.diag_embed(s2) @ v
             meta_test_imgs=meta_test_imgs.to(device,dtype=torch.float32)
             meta_test_labels = meta_test_labels.to(device, dtype=torch.long)
 
@@ -660,7 +658,7 @@ def main():
             if (cur_itrs) % 100 == 0: 
                 writer.add_scalar('LR_Backbone',scheduler.get_lr()[0],cur_itrs)
                 writer.add_scalar('LR_classifier',scheduler.get_lr()[1],cur_itrs)
-                add_gta_infos_in_tensorboard(writer,meta_train_imgs,meta_train_labels,meta_test_imgs,meta_test_imgs,meta_test_labels,outputs,cur_itrs,denorm,train_loader)
+                add_gta_infos_in_tensorboard(writer,meta_train_imgs,meta_train_labels,outputs_train,meta_test_imgs,meta_test_labels,outputs,cur_itrs,denorm,train_loader)
         
             if (cur_itrs) % opts.val_interval == 0:
                 save_ckpt('checkpoints/latest_%s_%s_os%d.pth' %

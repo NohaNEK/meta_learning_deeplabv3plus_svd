@@ -112,10 +112,9 @@ class GTA_SVD(data.Dataset):
                 self.images_dir = os.path.join(self.root,'svd', split)
                 self.targets_dir = os.path.join(self.root, self.mode, split)
                 self.coco_image = os.path.join(self.root,"svd","s_coco")
-             
               
                 self.split = split
-                if not os.path.isdir(self.images_dir) or not os.path.isdir(self.targets_dir) or not os.path.isdir(self.coco_image):
+                if not os.path.isdir(self.images_dir) or not os.path.isdir(self.targets_dir) :#or not os.path.isdir(self.coco_image):
                     raise RuntimeError('Dataset not found or incomplete. Please make sure all required folders for the'
                                     ' specified "split" and "mode" are inside the "root" directory')
                 
@@ -143,8 +142,17 @@ class GTA_SVD(data.Dataset):
         return cls.train_id_to_color[target]
     
 
-    def __len__(self):
-        return len(self.images)
+
+    
+    def __rec_image__(self,u,s,v):
+        u=torch.from_numpy(u).float()
+        s=torch.from_numpy(s).float() 
+        v= torch.from_numpy(v).float() 
+        image_rec = u  @ torch.diag_embed(s) @ v
+        image_rec = image_rec.squeeze(0)
+        image_rec = Image.fromarray(np.transpose(np.uint8(image_rec.numpy()*255),(1,2,0))).convert('RGB')
+        return image_rec
+
 
     def __getitem__(self, index):
         """
@@ -156,10 +164,15 @@ class GTA_SVD(data.Dataset):
         """
         #first image
         data= np.load(self.images[index]) 
+   
         u,s,v = data['u'], data['s'],data['v']
         name_img= self.images[index][-9:-4]
         target = Image.open(self.targets[index])
+        image = self.__rec_image__(u,s,v)
+        image = image.resize(target.size)
 
+        # image.show()
+       
 
         #second image
         id2= (index+1)% len(self.images)
@@ -171,35 +184,29 @@ class GTA_SVD(data.Dataset):
         s_coco=np.load(self.coco_imgs[id])
         s_coco =s_coco['arr_0']
  
-        coco_name=self.coco_imgs[id][-16:-4]
-
-     
-        u=torch.from_numpy(u).float()
-        s=torch.from_numpy(s).float() 
-        v= torch.from_numpy(v).float() 
-        s_coco= torch.from_numpy(s_coco).float()
+        # coco_name=self.coco_imgs[id][-16:-4]
 
 
-        u2=torch.from_numpy(u2).float()
-        v2= torch.from_numpy(v2).float() 
-        image_rec = u2  @ torch.diag_embed(s_coco) @ v2
-        image = u  @ torch.diag_embed(s) @ v
-        image =  image.squeeze(0)
-        image_rec = image_rec.squeeze(0)
-        image_rec = Image.fromarray(np.transpose(np.uint8(image_rec.numpy()*255),(1,2,0))).convert('RGB')
-        image = Image.fromarray(np.transpose(np.uint8(image.numpy()*255),(1,2,0))).convert('RGB')
-        # image_rec.show()
-        # image.show()
-        # target.show()
-        # target2.show()
-
-      
-        
-        
+        image_rec =  self.__rec_image__(u2,s_coco,v2)
 
         if self.transform:
+            # print('before trans')
+            # print(image.size)
+            # print(target.size)
             image, target = self.transform(image, target)
+            # print('after trans')
+            # print(image.size())
+            # print(target.size())
             image_rec, target2 = self.transform(image_rec, target2)
+
+        # denorm = utils.Denormalize(mean=[0.485, 0.456, 0.406],
+        #                            std=[0.229, 0.224, 0.225])
+        # image = Image.fromarray(np.transpose(np.uint8(denorm(image.numpy())*255),(1,2,0))).convert('RGB')
+        # # target = Image.fromarray(np.transpose(np.uint8(target.numpy()*255),(1,2,0)))
+        # image.show()
+        # target.show()
+        # br
+
       
 
         target = self.encode_target(target)
