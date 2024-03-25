@@ -122,7 +122,7 @@ class Cityscapes(data.Dataset):
         image = Image.open(self.images[index]).convert('RGB')
         target = Image.open(self.targets[index])
         if self.transform:
-            image, target ,_= self.transform(image, target,image)
+            image, target = self.transform(image, target)
         target = self.encode_target(target)
         return image, target
 

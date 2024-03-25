@@ -83,7 +83,7 @@ class GTA(data.Dataset):
         if split != 'all' : 
             self.images_dir = os.path.join(self.root, 'Scene', split)
             self.targets_dir = os.path.join(self.root, self.mode, split)
-            self.coco_image = os.path.join("/media/fahad/Crucial X8/deeplabv3plus/coco_ds/train2017")
+            # self.coco_image = os.path.join("/media/fahad/Crucial X8/deeplabv3plus/coco_ds/train2017")
            
             self.split = split
             if not os.path.isdir(self.images_dir) or not os.path.isdir(self.targets_dir):
@@ -95,8 +95,8 @@ class GTA(data.Dataset):
             
             for file_name in sorted(os.listdir(self.targets_dir)): 
                 self.targets.append(os.path.join(self.targets_dir, file_name))
-            for f_coco in sorted(os.listdir(self.coco_image)):
-                    self.coco_imgs.append(os.path.join(self.coco_image,f_coco))
+            # for f_coco in sorted(os.listdir(self.coco_image)):
+            #         self.coco_imgs.append(os.path.join(self.coco_image,f_coco))
         
         
         else:
@@ -105,11 +105,11 @@ class GTA(data.Dataset):
             for split in splits : 
                 self.images_dir = os.path.join(self.root, 'Scene', split)
                 self.targets_dir = os.path.join(self.root, self.mode, split)
-                self.coco_image = os.path.join("/media/fahad/Crucial X8/deeplabv3plus/coco_ds/train2017")
+            #    self.coco_image = os.path.join("/media/fahad/Crucial X8/deeplabv3plus/coco_ds/train2017")
              
               
                 self.split = split
-                if not os.path.isdir(self.images_dir) or not os.path.isdir(self.targets_dir) or not os.path.isdir(self.coco_image):
+                if not os.path.isdir(self.images_dir) or not os.path.isdir(self.targets_dir): #or not os.path.isdir(self.coco_image):
                     raise RuntimeError('Dataset not found or incomplete. Please make sure all required folders for the'
                                     ' specified "split" and "mode" are inside the "root" directory')
                 
@@ -119,8 +119,8 @@ class GTA(data.Dataset):
                 for file_name in sorted(os.listdir(self.targets_dir)):
                     self.targets.append(os.path.join(self.targets_dir, file_name))
                 
-                for f_coco in sorted(os.listdir(self.coco_image)):
-                    self.coco_imgs.append(os.path.join(self.coco_image,f_coco))
+                # for f_coco in sorted(os.listdir(self.coco_image)):
+                #     self.coco_imgs.append(os.path.join(self.coco_image,f_coco))
 
 
 
@@ -147,22 +147,22 @@ class GTA(data.Dataset):
         image = Image.open(self.images[index]).convert('RGB')
         target = Image.open(self.targets[index])
         
-        id = random.randint(0,len(self.coco_imgs)-1)
-        # print(self.images[index])
+        # id = random.randint(0,len(self.coco_imgs)-1)
+        # # print(self.images[index])
         # print(id)
  
         
-        coco_img = Image.open(self.coco_imgs[id]).convert('RGB')
+        # coco_img = Image.open(self.coco_imgs[id]).convert('RGB')
 
 
 
         if self.transform:
-            image, target , coco_img= self.transform(image, target,coco_img)
+            image, target = self.transform(image, target)
       
 
         target = self.encode_target(target)
 
-        return image, target,coco_img
+        return image, target#,coco_img
 
     def __len__(self):
         return len(self.images)

@@ -11,7 +11,7 @@ import cv2
 import utils
 from torchvision import transforms    
 import torchvision.transforms.functional as F
-
+import time 
 class GTA_SVD(data.Dataset):
     """Cityscapes <http://www.cityscapes-dataset.com/> Dataset.
     
@@ -162,58 +162,54 @@ class GTA_SVD(data.Dataset):
             tuple: (image, target) where target is a tuple of all target types if target_type is a list with more
             than one item. Otherwise target is a json object if target_type="polygon", else the image segmentation.
         """
-        #first image
-        data= np.load(self.images[index]) 
-   
-        u,s,v = data['u'], data['s'],data['v']
-        name_img= self.images[index][-9:-4]
-        target = Image.open(self.targets[index])
-        image = self.__rec_image__(u,s,v)
-        image = image.resize(target.size)
-
-        # image.show()
-       
-
-        #second image
-        id2= (index+1)% len(self.images)
-        data2= np.load(self.images[id2]) 
-        u2,s2,v2 = data2['u'], data2['s'],data2['v']
-        target2 = Image.open(self.targets[id2])
         
+        target = Image.open(self.targets[index])
+        
+        # start_time = time.time()
+        data= np.load(self.images[index]) 
+        
+        u,v , s = data['u'],data['v'],data['s']
+
         id = random.randint(0,len(self.coco_imgs)-1)
         s_coco=np.load(self.coco_imgs[id])
         s_coco =s_coco['arr_0']
- 
-        # coco_name=self.coco_imgs[id][-16:-4]
 
 
-        image_rec =  self.__rec_image__(u2,s_coco,v2)
+        u=torch.Tensor(u)
+        s=torch.Tensor(s)
+        s_coco=torch.Tensor(s_coco)
+        v= torch.Tensor(v)
+        s3=torch.cat([s[:,:,0].unsqueeze(2),s_coco[:,:,1:]],dim=2)
+        # print(s3.shape)
 
-        if self.transform:
-            # print('before trans')
-            # print(image.size)
-            # print(target.size)
-            image, target = self.transform(image, target)
-            # print('after trans')
-            # print(image.size())
-            # print(target.size())
-            image_rec, target2 = self.transform(image_rec, target2)
+        
 
-        # denorm = utils.Denormalize(mean=[0.485, 0.456, 0.406],
-        #                            std=[0.229, 0.224, 0.225])
-        # image = Image.fromarray(np.transpose(np.uint8(denorm(image.numpy())*255),(1,2,0))).convert('RGB')
-        # # target = Image.fromarray(np.transpose(np.uint8(target.numpy()*255),(1,2,0)))
+        image = u  @ torch.diag_embed(s_coco) @ v
+
+        
+        # print(u[0].shape)
+        # print(v[0].shape)
+        # print(s_coco[0].shape)
+        # print(np.diag(s_coco[0]).shape)
+        # image = np.matmul(u[0], np.matmul(np.diag(s_coco[0]), v[0]))
+
+        image = image.squeeze(0)
+
+        
+        image = Image.fromarray(np.transpose(np.uint8(image*255),(1,2,0))).convert('RGB')
+        # image = image.resize(target.size)
+        
+        # print('reshape',(end_time-start_time)*1000)
         # image.show()
-        # target.show()
-        # br
-
-      
-
+        
+        if self.transform:
+            image, target = self.transform(image, target)
+        
+        # end_time =time.time()
+        
+        # exec_time=(end_time-start_time)*1000
         target = self.encode_target(target)
-        target2 = self.encode_target(target2)
-        # print(type(image))
-
-        return image, target,image_rec,target2
+        return image, target#, exec_time 
 
     def __len__(self):
         return len(self.images)

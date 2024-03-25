@@ -29,7 +29,7 @@ def get_argparser():
     parser = argparse.ArgumentParser()
 
     # Datset Options
-    parser.add_argument("--data_root", type=str, default='/media/fahad/DATA_2/GTA5',
+    parser.add_argument("--data_root", type=str, default='/media/fahad/Crucial X81/Mohamed/GTA',
                         help="path to Dataset")
     parser.add_argument("--dataset", type=str, default='voc',
                         choices=['voc', 'cityscapes'], help='Name of dataset')
@@ -135,7 +135,7 @@ def get_dataset(opts):
 
     if opts.dataset == 'cityscapes':
         train_transform = et.ExtCompose([
-            et.ExtResize(size= (1052,1914) ),
+            et.ExtResize(size= (1914,1052) ),
             et.ExtRandomCrop(size=(768,768)),
             et.ExtRandomHorizontalFlip(),
            
@@ -158,12 +158,14 @@ def get_dataset(opts):
 
         
 
-        train_dst = GTA_SVD(root=opts.data_root,
+        train_dst = GTA(root=opts.data_root,
                                split='all', transform=train_transform)
-        val_dst = Cityscapes(root='/media/fahad/Crucial X8/datasets/cityscapes/',
+        meta_test_dst = GTA_SVD(root=opts.data_root,
+                               split='all', transform=train_transform)
+        val_dst = Cityscapes(root='/media/fahad/Crucial X81/datasets/cityscapes/',
                         split='val', transform=val_transform)
         
-    return train_dst, val_dst 
+    return train_dst, meta_test_dst,val_dst 
 def add_gta_infos_in_tensorboard(writer,imgs,labels,outputs_train,meta_test_imgs,meta_test_labels,outputs,cur_itrs,denorm,train_loader):
         
         i=1
@@ -179,12 +181,7 @@ def add_gta_infos_in_tensorboard(writer,imgs,labels,outputs_train,meta_test_imgs
         pred = train_loader.dataset.decode_target(pred[i]).astype('uint8')
         writer.add_image('gta_pred',pred,cur_itrs,dataformats='HWC')
 
-      
-      
-        # coco_img = coco_imgs[0].detach().cpu().numpy()
-        # coco_img = (denorm(coco_img)*255).astype(np.uint8)
-        # writer.add_image('coco_image',coco_img,cur_itrs,dataformats='CHW')
-        
+
         rec_img=meta_test_imgs[0].detach().cpu().numpy()
         rec_img=(denorm(rec_img)*255).astype(np.uint8)
         writer.add_image('gta_test_image',rec_img,cur_itrs,dataformats='CHW')
@@ -214,14 +211,7 @@ def add_cs_in_tensorboard(writer,imgs,labels,outputs,cur_itrs,denorm,train_loade
 
     res_grid=[img,np.transpose(lbs,(2,0,1)),np.transpose(pred,(2,0,1))]
     writer.add_images('test sample cityscapes '+str(i),res_grid,cur_itrs,dataformats='CHW')
-def create_colormap(feat):
-    # cmap= plt.get_cmap('viridis')
-    cmap= plt.get_cmap('jet')
 
-    feat_map = cmap(feat)
-
-    feat_map=(feat_map*255).astype(np.uint8)
-    return feat_map
 def validate(opts, model, loader, device, metrics,denorm=None,writer=None, cur_itrs=0,ret_samples_ids=None):
     """Do validation and return specified samples"""
     metrics.reset()
@@ -279,19 +269,7 @@ def validate(opts, model, loader, device, metrics,denorm=None,writer=None, cur_i
         score = metrics.get_results()
         
     return score, ret_samples
-def add_feats(writer,feats,name,cur_itrs):
-        
-        # for f in feats:
-            #f1=feats[0]
-            f_b=feats['out'][0].mean(dim=0)
-            f_b= (f_b-f_b.min())/(f_b.max()-f_b.min())         
-            writer.add_image('feat_out_'+name,create_colormap(f_b.detach().cpu().numpy()),cur_itrs,dataformats='HWC')
-            f_b=feats['low_level'][0].mean(dim=0)
-            f_b= (f_b-f_b.min())/(f_b.max()-f_b.min())         
-            writer.add_image('feat_lowl_'+name,create_colormap(f_b.detach().cpu().numpy()),cur_itrs,dataformats='HWC')
-            # f_b=torch.sum(feats[1][0],dim=0)
-            # f_b= (f_b-f_b.min())/(f_b.max()-f_b.min())         
-            # writer.add_image('feat_backbone_l2_'+name,create_colormap(f_b.detach().cpu().numpy()),cur_itrs,dataformats='HWC')
+
 def writer_add_features(writer, name, tensor_feat, iterations):
     feat_img = tensor_feat[0].detach().cpu().numpy()
     # img_grid = self.make_grid(feat_img)
@@ -302,38 +280,6 @@ def writer_add_features(writer, name, tensor_feat, iterations):
     writer.add_image(name, img_grid, iterations, dataformats='HWC')
 
 
-# def get_updated_network(old, new, lr, load=False): #lr_inner =5e-4 ,  outer_lr=2e-3,
-#     updated_theta = {}
-#     state_dicts = old.state_dict()
-#     param_dicts = dict(old.named_parameters())
-
-#     for i, (k, v) in enumerate(state_dicts.items()):
-#         if k in param_dicts.keys() and param_dicts[k].grad is not None:
-#             updated_theta[k] = param_dicts[k] - lr * param_dicts[k].grad
-#         else:
-#             updated_theta[k] = state_dicts[k]
-#     if load:
-#         new.load_state_dict(updated_theta)
-#     else:
-#         new = put_theta(new, updated_theta)
-#     return new
-# def put_theta(model, theta):
-#     def k_param_fn(tmp_model, name=None):
-#         if len(tmp_model._modules) != 0:
-#             for (k, v) in tmp_model._modules.items():
-#                 if name is None:
-#                     k_param_fn(v, name=str(k))
-#                 else:
-#                     k_param_fn(v, name=str(name + '.' + k))
-#         else:
-#             for (k, v) in tmp_model._parameters.items():
-#                 if not isinstance(v, torch.Tensor):
-#                     continue
-#                 # print("K",k, name)
-#                 tmp_model._parameters[k] = theta[str(name + '.' + k)]
-
-#     k_param_fn(model)
-#     return model   
 
 
 
@@ -395,16 +341,19 @@ def main():
     torch.manual_seed(opts.random_seed)
     np.random.seed(opts.random_seed)
     random.seed(opts.random_seed)
-    writer = SummaryWriter("/media/fahad/Crucial X8/deeplabv3plus/Deeplabv3plus_baseline/logs2/R101_M_L_svd_same_batch")#original_baseline
+    writer = SummaryWriter("/media/fahad/Crucial X81/deeplabv3plus/Deeplabv3plus_baseline/runs/R101_M_L_svd_nestrov_4_6_S0")#original_baseline
 
     # Setup dataloader
     if opts.dataset == 'voc' and not opts.crop_val:
         opts.val_batch_size = 1
 
-    train_dst, val_dst = get_dataset(opts)
+    train_dst, meta_test_dst,val_dst = get_dataset(opts)
     # coco_loader = DataLoader(coco_ds,batch_size=6,shuffle=True,num_workers=2)
     train_loader = data.DataLoader(
         train_dst, batch_size=opts.batch_size, shuffle=True, num_workers=2,
+        drop_last=True)  # drop_last=True to ignore single-image batches.
+    meta_test_loader = data.DataLoader(
+        meta_test_dst, batch_size=6, shuffle=True, num_workers=2,
         drop_last=True)  # drop_last=True to ignore single-image batches.
     val_loader = data.DataLoader(
         val_dst, batch_size=opts.val_batch_size, shuffle=True, num_workers=2)
@@ -427,7 +376,7 @@ def main():
     optimizer = torch.optim.SGD(params=[
         {'params': model.backbone.parameters(), 'lr': 0.1 * opts.lr},
         {'params': model.classifier.parameters(), 'lr': opts.lr},
-    ], lr=opts.lr, momentum=0.9, weight_decay=opts.weight_decay)
+    ], lr=opts.lr, momentum=0.9, weight_decay=opts.weight_decay,nesterov=True)
     # optimizer = torch.optim.SGD(params=model.parameters(), lr=opts.lr, momentum=0.9, weight_decay=opts.weight_decay)
     # torch.optim.lr_scheduler.StepLR(optimizer, step_size=opts.lr_decay_step, gamma=opts.lr_decay_factor)
     if opts.lr_policy == 'poly':
@@ -509,6 +458,7 @@ def main():
     while True:  # cur_itrs < opts.total_itrs:
         # =====  Train  =====
         model.train()
+        
         cur_epochs += 1
         id=0
         # print("########### initial param of original model ##########")
@@ -521,7 +471,7 @@ def main():
         #         print("grad",p.grad)
         #     break
 
-        for (meta_train_imgs, meta_train_labels,meta_test_imgs,meta_test_labels) in train_loader:
+        for (meta_train_imgs, meta_train_labels),(meta_test_imgs,meta_test_labels) in zip(train_loader,meta_test_loader):
             cur_itrs += 1
             #split batch into meta-train (8imgs) & meta-test (16 imgs)
             # meta_train_imgs=images[:idx]
@@ -538,54 +488,14 @@ def main():
             #Perform Meta-Train
             optimizer.zero_grad(set_to_none=True)
             outputs_train,_ = model(meta_train_imgs)
+        
             ds_loss = criterion(outputs_train, meta_train_labels)
             ds_loss.backward(retain_graph=True)
-            # print("########### param of original model after ds backward ##########")
-            # for n, p in model.named_parameters():
-            #     print(n,p[id])
-        
-            #     if p.grad !=  None:
-            #         print("grad",p.grad[id])
-            #     else:
-            #         print("grad",p.grad)
-            #     break
-
-
             np_loss = ds_loss.detach().cpu().numpy()
             interval_loss_ds += np_loss
             del ds_loss
 
             clone_model = get_updated_network(model,clone_model,inner_lr)
-            # ###### copy model parameters to clone model 
-            # for param_model,param_clone in zip(model.parameters(), clone_model.parameters()):
-        
-            #                     if param_model.grad is not None:
-            #                          param_clone = param_model - inner_lr*param_model.grad
-            #                          param_clone.grad= None
-            #                     else :
-            #                         param_clone = param_model
-            #                         param_clone.grad= None
-            # print("########### param of clone_model  after copy & update params ##########")
-            # for n, p in clone_model.named_parameters():
-            #     print(n,p[id])
-        
-            #     if p.grad !=  None:
-            #         print("grad",p.grad[id])
-            #     else:
-            #         print("grad",p.grad)
-            #     break
-
-            # print("########### param of model  after copy & update params ##########")
-            # for n, p in model.named_parameters():
-            #     print(n,p[id])
-        
-            #     if p.grad !=  None:
-            #         print("grad",p.grad[id])
-            #     else:
-            #         print("grad",p.grad)
-            #     break
-
-
             meta_test_imgs=meta_test_imgs.to(device,dtype=torch.float32)
             meta_test_labels = meta_test_labels.to(device, dtype=torch.long)
 
@@ -596,56 +506,15 @@ def main():
             #update the original network (model in our case)
             dg_loss.backward()
 
-            # print("########### param of clone_model  after dg backward ##########")
-            # for n, p in clone_model.named_parameters():
-            #     print(n,p[id])
-        
-            #     if p.grad !=  None:
-            #         print("grad",p.grad[id])
-            #     else:
-            #         print("grad",p.grad)
-            #     break
-            
-            # print("########### param of model  after dg backward ##########")
-            # for n, p in model.named_parameters():
-            #     print(n,p[id])
-        
-            #     if p.grad !=  None:
-            #         print("grad",p.grad[id])
-            #     else:
-            #         print("grad",p.grad)
-            #     break
-
             optimizer.step()
 
-            # print("########### param of clone_model  after optimizer ##########")
-            # for n, p in clone_model.named_parameters():
-            #     print(n,p[id])
-        
-            #     if p.grad !=  None:
-            #         print("grad",p.grad[id])
-            #     else:
-            #         print("grad",p.grad)
-            #     break
-
-            # print("########### param of model  after optimizer ##########")
-            # for n, p in model.named_parameters():
-            #     print(n,p[id])
-        
-            #     if p.grad !=  None:
-            #         print("grad",p.grad[id])
-            #     else:
-            #         print("grad",p.grad)
-            #     break
-
-
-            
             np_loss = dg_loss.detach().cpu().numpy()
             interval_loss_dg += np_loss
             del dg_loss
 
    
             if (cur_itrs) % 10 == 0:
+                # print("execution time :",exec_time)
                 interval_loss_ds = interval_loss_ds / 10
                 interval_loss_dg = interval_loss_dg / 10
                 print("Epoch %d, Itrs %d/%d, Loss ds=%f, Loss dg =%f" %
