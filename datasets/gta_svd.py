@@ -184,7 +184,7 @@ class GTA_SVD(data.Dataset):
 
         
 
-        image = u  @ torch.diag_embed(s_coco) @ v
+        image = u  @ torch.diag_embed(s3) @ v
 
         
         # print(u[0].shape)

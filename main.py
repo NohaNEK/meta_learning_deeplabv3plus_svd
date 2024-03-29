@@ -341,7 +341,7 @@ def main():
     torch.manual_seed(opts.random_seed)
     np.random.seed(opts.random_seed)
     random.seed(opts.random_seed)
-    writer = SummaryWriter("/media/fahad/Crucial X81/deeplabv3plus/Deeplabv3plus_baseline/runs/R101_M_L_svd_nestrov_4_6_S0")#original_baseline
+    writer = SummaryWriter("/media/fahad/Crucial X81/deeplabv3plus/Deeplabv3plus_baseline/runs/R101_M_L_svd_4_6_S0_v2")#original_baseline
 
     # Setup dataloader
     if opts.dataset == 'voc' and not opts.crop_val:
@@ -376,7 +376,7 @@ def main():
     optimizer = torch.optim.SGD(params=[
         {'params': model.backbone.parameters(), 'lr': 0.1 * opts.lr},
         {'params': model.classifier.parameters(), 'lr': opts.lr},
-    ], lr=opts.lr, momentum=0.9, weight_decay=opts.weight_decay,nesterov=True)
+    ], lr=opts.lr, momentum=0.9, weight_decay=opts.weight_decay)#,nesterov=True)
     # optimizer = torch.optim.SGD(params=model.parameters(), lr=opts.lr, momentum=0.9, weight_decay=opts.weight_decay)
     # torch.optim.lr_scheduler.StepLR(optimizer, step_size=opts.lr_decay_step, gamma=opts.lr_decay_factor)
     if opts.lr_policy == 'poly':
