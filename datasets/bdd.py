@@ -1,3 +1,4 @@
+
 import json
 import os
 from collections import namedtuple
@@ -7,12 +8,8 @@ import torch.utils.data as data
 from PIL import Image
 import numpy as np
 import random
-import cv2
-import utils
-from torchvision import transforms    
-import torchvision.transforms.functional as F
-import time 
-class GTA_SVD(data.Dataset):
+
+class BDD(data.Dataset):
     """Cityscapes <http://www.cityscapes-dataset.com/> Dataset.
     
     **Parameters:**
@@ -76,7 +73,7 @@ class GTA_SVD(data.Dataset):
 
     def __init__(self, root, split='train', mode='fine', target_type='semantic', transform=None):
         self.root = os.path.expanduser(root)
-        self.mode = 'LabelIds'
+        self.mode = 'labels'
         self.target_type = target_type
         self.images = []
         self.targets = []
@@ -85,13 +82,14 @@ class GTA_SVD(data.Dataset):
         self.transform = transform
 
         if split != 'all' : 
-            # self.images_dir = os.path.join(self.root, 'svd', split)
-            self.images_dir = os.path.join(self.root,'svd', split)
-            print(self.images_dir)
-            self.targets_dir = os.path.join(self.root, self.mode, split)
-            self.coco_image = os.path.join(self.root,"svd","s_coco")
+            self.images_dir = os.path.join(self.root, 'images', split,'images')
+            self.targets_dir = os.path.join(self.root, self.mode, split,'images')
+            # self.coco_image = os.path.join("/media/fahad/Crucial X8/deeplabv3plus/coco_ds/train2017")
            
             self.split = split
+            print("os.path.isdir(self.images_dir)",self.images_dir)
+            print("self.targets_dir ",self.targets_dir )
+            print("split",self.split)
             if not os.path.isdir(self.images_dir) or not os.path.isdir(self.targets_dir):
                 raise RuntimeError('Dataset not found or incomplete. Please make sure all required folders for the'
                                 ' specified "split" and "mode" are inside the "root" directory')
@@ -101,20 +99,21 @@ class GTA_SVD(data.Dataset):
             
             for file_name in sorted(os.listdir(self.targets_dir)): 
                 self.targets.append(os.path.join(self.targets_dir, file_name))
-            for f_coco in sorted(os.listdir(self.coco_image)):
-                    self.coco_imgs.append(os.path.join(self.coco_image,f_coco))
+            # for f_coco in sorted(os.listdir(self.coco_image)):
+            #         self.coco_imgs.append(os.path.join(self.coco_image,f_coco))
         
         
         else:
             
-            splits = ['train', 'val', 'test']
+            splits = ['train', 'val_bdd', 'test']
             for split in splits : 
-                self.images_dir = os.path.join(self.root,'svd', split)
+                self.images_dir = os.path.join(self.root,self.mode , split)
                 self.targets_dir = os.path.join(self.root, self.mode, split)
-                self.coco_image = os.path.join(self.root,"svd","s_coco")
+            #    self.coco_image = os.path.join("/media/fahad/Crucial X8/deeplabv3plus/coco_ds/train2017")
+             
               
                 self.split = split
-                if not os.path.isdir(self.images_dir) or not os.path.isdir(self.targets_dir) :#or not os.path.isdir(self.coco_image):
+                if not os.path.isdir(self.images_dir) or not os.path.isdir(self.targets_dir): #or not os.path.isdir(self.coco_image):
                     raise RuntimeError('Dataset not found or incomplete. Please make sure all required folders for the'
                                     ' specified "split" and "mode" are inside the "root" directory')
                 
@@ -124,8 +123,8 @@ class GTA_SVD(data.Dataset):
                 for file_name in sorted(os.listdir(self.targets_dir)):
                     self.targets.append(os.path.join(self.targets_dir, file_name))
                 
-                for f_coco in sorted(os.listdir(self.coco_image)):
-                    self.coco_imgs.append(os.path.join(self.coco_image,f_coco))
+                # for f_coco in sorted(os.listdir(self.coco_image)):
+                #     self.coco_imgs.append(os.path.join(self.coco_image,f_coco))
 
 
 
@@ -140,19 +139,6 @@ class GTA_SVD(data.Dataset):
         target[target == 255] = 19
         #target = target.astype('uint8') + 1
         return cls.train_id_to_color[target]
-    
-
-
-    
-    def __rec_image__(self,u,s,v):
-        u=torch.from_numpy(u).float()
-        s=torch.from_numpy(s).float() 
-        v= torch.from_numpy(v).float() 
-        image_rec = u  @ torch.diag_embed(s) @ v
-        image_rec = image_rec.squeeze(0)
-        image_rec = Image.fromarray(np.transpose(np.uint8(image_rec.numpy()*255),(1,2,0))).convert('RGB')
-        return image_rec
-
 
     def __getitem__(self, index):
         """
@@ -162,54 +148,25 @@ class GTA_SVD(data.Dataset):
             tuple: (image, target) where target is a tuple of all target types if target_type is a list with more
             than one item. Otherwise target is a json object if target_type="polygon", else the image segmentation.
         """
-        
+        image = Image.open(self.images[index]).convert('RGB')
         target = Image.open(self.targets[index])
         
-        # start_time = time.time()
-        data= np.load(self.images[index]) 
+        # id = random.randint(0,len(self.coco_imgs)-1)
+        # # print(self.images[index])
+        # print(id)
+ 
         
-        u,v , s = data['u'],data['v'],data['s']
-
-        id = random.randint(0,len(self.coco_imgs)-1)
-        s_coco=np.load(self.coco_imgs[id])
-        s_coco =s_coco['arr_0']
+        # coco_img = Image.open(self.coco_imgs[id]).convert('RGB')
 
 
-        u=torch.Tensor(u)
-        s=torch.Tensor(s)
-        s_coco=torch.Tensor(s_coco)
-        v= torch.Tensor(v)
-        # s3=torch.cat([s[:,:,0].unsqueeze(2),s_coco[:,:,1:]],dim=2)
-        # print(s3.shape)
 
-        
-
-        image = u  @ torch.diag_embed(s_coco) @ v
-
-        
-        # print(u[0].shape)
-        # print(v[0].shape)
-        # print(s_coco[0].shape)
-        # print(np.diag(s_coco[0]).shape)
-        # image = np.matmul(u[0], np.matmul(np.diag(s_coco[0]), v[0]))
-
-        image = image.squeeze(0)
-
-        
-        image = Image.fromarray(np.transpose(np.uint8(image*255),(1,2,0))).convert('RGB')
-        # image = image.resize(target.size)
-        
-        # print('reshape',(end_time-start_time)*1000)
-        # image.show()
-        
         if self.transform:
             image, target = self.transform(image, target)
-        
-        # end_time =time.time()
-        
-        # exec_time=(end_time-start_time)*1000
+      
+
         target = self.encode_target(target)
-        return image, target#, exec_time 
+
+        return image, target#,coco_img
 
     def __len__(self):
         return len(self.images)

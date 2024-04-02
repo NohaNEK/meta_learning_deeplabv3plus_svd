@@ -7,7 +7,7 @@ import argparse
 import numpy as np
 
 from torch.utils import data
-from datasets import VOCSegmentation, Cityscapes, GTA, GTA_SVD, COCO
+from datasets import VOCSegmentation, Cityscapes, GTA, GTA_SVD, COCO, BDD
 from utils import ext_transforms_2 as et
 from metrics import StreamSegMetrics
 
@@ -160,8 +160,8 @@ def get_dataset(opts):
 
         train_dst = GTA(root=opts.data_root,
                                split='all', transform=train_transform)
-        meta_test_dst = GTA_SVD(root=opts.data_root,
-                               split='all', transform=train_transform)
+        meta_test_dst = BDD(root="/media/fahad/Crucial X81/datasets/mapillary",
+                               split='val_mapillary', transform=train_transform)
         val_dst = Cityscapes(root='/media/fahad/Crucial X81/datasets/cityscapes/',
                         split='val', transform=val_transform)
         
@@ -341,7 +341,7 @@ def main():
     torch.manual_seed(opts.random_seed)
     np.random.seed(opts.random_seed)
     random.seed(opts.random_seed)
-    writer = SummaryWriter("/media/fahad/Crucial X81/deeplabv3plus/Deeplabv3plus_baseline/runs/R101_M_L_svd_4_6_S0_v2")#original_baseline
+    writer = SummaryWriter("/media/fahad/Crucial X81/deeplabv3plus/Deeplabv3plus_baseline/runs/R101_M_L_svd_4_6_mapillary")#original_baseline
 
     # Setup dataloader
     if opts.dataset == 'voc' and not opts.crop_val:
@@ -380,7 +380,7 @@ def main():
     # optimizer = torch.optim.SGD(params=model.parameters(), lr=opts.lr, momentum=0.9, weight_decay=opts.weight_decay)
     # torch.optim.lr_scheduler.StepLR(optimizer, step_size=opts.lr_decay_step, gamma=opts.lr_decay_factor)
     if opts.lr_policy == 'poly':
-        scheduler = utils.PolyLR(optimizer, opts.total_itrs, power=0.9)
+        scheduler = utils.PolyLR(optimizer, opts.total_itrs, power=0.9)#,min_lr=5e-4)
         # print(scheduler)
     elif opts.lr_policy == 'step':
         scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=opts.step_size, gamma=0.1)
@@ -471,8 +471,9 @@ def main():
         #         print("grad",p.grad)
         #     break
 
-        for (meta_train_imgs, meta_train_labels),(meta_test_imgs,meta_test_labels) in zip(train_loader,meta_test_loader):
+        for (meta_train_imgs, meta_train_labels),(meta_test_imgs,meta_test_labels)  in zip(train_loader,meta_test_loader):
             cur_itrs += 1
+            #,(meta_test_imgs,meta_test_labels) 
             #split batch into meta-train (8imgs) & meta-test (16 imgs)
             # meta_train_imgs=images[:idx]
             # meta_train_labels =labels[:idx]
@@ -512,7 +513,8 @@ def main():
             interval_loss_dg += np_loss
             del dg_loss
 
-   
+            # if (scheduler.get_lr()[0]<=inner_lr):
+            #     inner_lr=scheduler.get_lr()[0]
             if (cur_itrs) % 10 == 0:
                 # print("execution time :",exec_time)
                 interval_loss_ds = interval_loss_ds / 10
