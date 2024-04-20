@@ -32,7 +32,7 @@ class BDD(data.Dataset):
         CityscapesClass('dynamic',              5, 255, 'void', 0, False, True, (111, 74, 0)),
         CityscapesClass('ground',               6, 255, 'void', 0, False, True, (81, 0, 81)),
         CityscapesClass('road',                 7, 0, 'flat', 1, False, False, (128, 64, 128)),
-        CityscapesClass('sidewalk',             8, 1, 'flat', 1, False, False, (244, 35, 232)),
+
         CityscapesClass('parking',              9, 255, 'flat', 1, False, True, (250, 170, 160)),
         CityscapesClass('rail track',           10, 255, 'flat', 1, False, True, (230, 150, 140)),
         CityscapesClass('building',             11, 2, 'construction', 2, False, False, (70, 70, 70)),
@@ -73,7 +73,7 @@ class BDD(data.Dataset):
 
     def __init__(self, root, split='train', mode='fine', target_type='semantic', transform=None):
         self.root = os.path.expanduser(root)
-        self.mode = 'labels'
+        self.mode = 'masks'
         self.target_type = target_type
         self.images = []
         self.targets = []
@@ -82,8 +82,9 @@ class BDD(data.Dataset):
         self.transform = transform
 
         if split != 'all' : 
-            self.images_dir = os.path.join(self.root, 'images', split,'images')
-            self.targets_dir = os.path.join(self.root, self.mode, split,'images')
+            print(split)
+            self.images_dir = os.path.join(self.root, 'Scene', split)
+            self.targets_dir = os.path.join(self.root, self.mode, split)
             # self.coco_image = os.path.join("/media/fahad/Crucial X8/deeplabv3plus/coco_ds/train2017")
            
             self.split = split
@@ -105,9 +106,9 @@ class BDD(data.Dataset):
         
         else:
             
-            splits = ['train', 'val_bdd', 'test']
+            splits = ['train', 'val']
             for split in splits : 
-                self.images_dir = os.path.join(self.root,self.mode , split)
+                self.images_dir = os.path.join(self.root,'Scene', split)
                 self.targets_dir = os.path.join(self.root, self.mode, split)
             #    self.coco_image = os.path.join("/media/fahad/Crucial X8/deeplabv3plus/coco_ds/train2017")
              
@@ -164,7 +165,7 @@ class BDD(data.Dataset):
             image, target = self.transform(image, target)
       
 
-        target = self.encode_target(target)
+        #target = self.encode_target(target)
 
         return image, target#,coco_img
 

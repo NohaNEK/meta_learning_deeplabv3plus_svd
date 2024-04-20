@@ -101,7 +101,7 @@ class GTA(data.Dataset):
         
         else:
             
-            splits = ['train', 'val', 'test']
+            splits = ['train',  'test']#'val',
             for split in splits : 
                 self.images_dir = os.path.join(self.root, 'Scene', split)
                 self.targets_dir = os.path.join(self.root, self.mode, split)

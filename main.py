@@ -160,8 +160,8 @@ def get_dataset(opts):
 
         train_dst = GTA(root=opts.data_root,
                                split='all', transform=train_transform)
-        meta_test_dst = BDD(root="/media/fahad/Crucial X81/datasets/mapillary",
-                               split='val_mapillary', transform=train_transform)
+        meta_test_dst = BDD(root="/media/fahad/Crucial X81/datasets/bdd",
+                               split='train2k', transform=train_transform)
         val_dst = Cityscapes(root='/media/fahad/Crucial X81/datasets/cityscapes/',
                         split='val', transform=val_transform)
         
@@ -341,7 +341,7 @@ def main():
     torch.manual_seed(opts.random_seed)
     np.random.seed(opts.random_seed)
     random.seed(opts.random_seed)
-    writer = SummaryWriter("/media/fahad/Crucial X81/deeplabv3plus/Deeplabv3plus_baseline/runs/R101_M_L_svd_4_6_mapillary")#original_baseline
+    writer = SummaryWriter("/media/fahad/DATA_2/ckpt_sd/R101_M_L_4_6_bdd2k")#original_baseline
 
     # Setup dataloader
     if opts.dataset == 'voc' and not opts.crop_val:
