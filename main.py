@@ -155,13 +155,23 @@ def get_dataset(opts):
     
 
         # coco_ds = COCO(root_dir="/media/fahad/Crucial X8/deeplabv3plus/rgb_mask_contrib/train2017",transform=trans)
+        train_transform2= et.ExtCompose([
+            et.ExtResize(size= (768,768) ),
+           # et.ExtRandomCrop(size=(768,768)),
+            et.ExtRandomHorizontalFlip(),
+           
+            et.ExtToTensor(),
+           et.ExtNormalize(mean=[0.485, 0.456, 0.406],
+                           std=[0.229, 0.224, 0.225]),
+        ])
+
 
         
 
         train_dst = GTA(root=opts.data_root,
                                split='all', transform=train_transform)
         meta_test_dst = BDD(root="/media/fahad/Crucial X81/datasets/bdd",
-                               split='train2k', transform=train_transform)
+                               split='train2k', transform=train_transform2)
         val_dst = Cityscapes(root='/media/fahad/Crucial X81/datasets/cityscapes/',
                         split='val', transform=val_transform)
         
@@ -341,7 +351,7 @@ def main():
     torch.manual_seed(opts.random_seed)
     np.random.seed(opts.random_seed)
     random.seed(opts.random_seed)
-    writer = SummaryWriter("/media/fahad/DATA_2/ckpt_sd/R101_M_L_4_6_bdd2k")#original_baseline
+    writer = SummaryWriter("/media/fahad/DATA_2/ckpt_sd/R101_M_L_4_6_bdd2k_no_crop")#original_baseline
 
     # Setup dataloader
     if opts.dataset == 'voc' and not opts.crop_val:
