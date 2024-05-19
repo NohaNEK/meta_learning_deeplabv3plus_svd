@@ -121,6 +121,7 @@ class Cityscapes(data.Dataset):
         """
         image = Image.open(self.images[index]).convert('RGB')
         target = Image.open(self.targets[index])
+        name=self.targets[index]
         if self.transform:
             image, target = self.transform(image, target)
         target = self.encode_target(target)

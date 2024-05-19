@@ -171,9 +171,9 @@ def get_dataset(opts):
         train_dst = GTA(root=opts.data_root,
                                split='all', transform=train_transform)
         meta_test_dst = GTA_SD(root="/media/fahad/Crucial X81/gen_data/",
-                               split='all', transform=train_transform2)
-        val_dst = Cityscapes(root='/media/fahad/Crucial X81/datasets/cityscapes/',
-                        split='val', transform=val_transform)
+                               split='all', transform=train_transform)
+        val_dst = BDD(root='/media/fahad/Crucial X81/datasets/bdd/',
+                        split='train2k', transform=val_transform)
         
     return train_dst, meta_test_dst,val_dst 
 def add_gta_infos_in_tensorboard(writer,imgs,labels,outputs_train,meta_test_imgs,meta_test_labels,outputs,cur_itrs,denorm,train_loader):
@@ -351,7 +351,7 @@ def main():
     torch.manual_seed(opts.random_seed)
     np.random.seed(opts.random_seed)
     random.seed(opts.random_seed)
-    writer = SummaryWriter("/media/fahad/DATA_2/ckpt_sd2/R101_M_L_4_6_lora_cs_1279x852_v2")#_1279x852")#original_baseline
+    writer = SummaryWriter("/media/fahad/DATA_2/ckpt_sd2/R101_M_L_4_6_lora_cs")#_1279x852")#original_baseline
 
     # Setup dataloader
     if opts.dataset == 'voc' and not opts.crop_val:

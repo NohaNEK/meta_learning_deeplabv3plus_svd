@@ -32,7 +32,7 @@ class BDD(data.Dataset):
         CityscapesClass('dynamic',              5, 255, 'void', 0, False, True, (111, 74, 0)),
         CityscapesClass('ground',               6, 255, 'void', 0, False, True, (81, 0, 81)),
         CityscapesClass('road',                 7, 0, 'flat', 1, False, False, (128, 64, 128)),
-
+        CityscapesClass('sidewalk',             8, 1, 'flat', 1, False, False, (244, 35, 232)),
         CityscapesClass('parking',              9, 255, 'flat', 1, False, True, (250, 170, 160)),
         CityscapesClass('rail track',           10, 255, 'flat', 1, False, True, (230, 150, 140)),
         CityscapesClass('building',             11, 2, 'construction', 2, False, False, (70, 70, 70)),

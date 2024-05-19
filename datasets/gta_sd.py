@@ -8,7 +8,7 @@ from PIL import Image
 import numpy as np
 import random
 
-class GTA(data.Dataset):
+class GTA_SD(data.Dataset):
     """Cityscapes <http://www.cityscapes-dataset.com/> Dataset.
     
     **Parameters:**
@@ -72,7 +72,7 @@ class GTA(data.Dataset):
 
     def __init__(self, root, split='train', mode='fine', target_type='semantic', transform=None):
         self.root = os.path.expanduser(root)
-        self.mode = 'LabelIds'
+        self.mode = 'label_ids'
         self.target_type = target_type
         self.images = []
         self.targets = []
@@ -81,10 +81,9 @@ class GTA(data.Dataset):
         self.transform = transform
 
         if split != 'all' : 
-            self.images_dir = os.path.join(self.root, 'Scene', split)
+            self.images_dir = os.path.join(self.root, 'Scene_upscaled', split)
             self.targets_dir = os.path.join(self.root, self.mode, split)
             # self.coco_image = os.path.join("/media/fahad/Crucial X8/deeplabv3plus/coco_ds/train2017")
-            print(self.images_dir)
            
             self.split = split
             if not os.path.isdir(self.images_dir) or not os.path.isdir(self.targets_dir):
@@ -101,13 +100,16 @@ class GTA(data.Dataset):
                 self.targets.append(os.path.join(self.targets_dir, file_name))
             # for f_coco in sorted(os.listdir(self.coco_image)):
             #         self.coco_imgs.append(os.path.join(self.coco_image,f_coco))
+            # print(self.targets[0:10])
+            # print(self.images[0:10])
+      
         
         
         else:
             
-            splits = ['train',  'test']#'val',
+            splits = ['s1',  's2']#'val',
             for split in splits : 
-                self.images_dir = os.path.join(self.root, 'Scene', split)
+                self.images_dir = os.path.join(self.root, 'Scene_upscaled', split)
                 self.targets_dir = os.path.join(self.root, self.mode, split)
             #    self.coco_image = os.path.join("/media/fahad/Crucial X8/deeplabv3plus/coco_ds/train2017")
              
@@ -152,9 +154,11 @@ class GTA(data.Dataset):
 
         image = Image.open(self.images[index]).convert('RGB')
         target = Image.open(self.targets[index])
-       
+        
         # id = random.randint(0,len(self.coco_imgs)-1)
-
+        # print(self.images[index])
+        # print(self.targets[index])
+        
         # print(id)
  
         
