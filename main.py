@@ -351,7 +351,7 @@ def main():
     torch.manual_seed(opts.random_seed)
     np.random.seed(opts.random_seed)
     random.seed(opts.random_seed)
-    writer = SummaryWriter("/media/fahad/DATA_2/ckpt_sd2/R101_M_L_4_6_lora_cs_upscaled")#_1279x852")#original_baseline
+    writer = SummaryWriter("/media/fahad/DATA_2/ckpt_sd2/R101_M_L_4_6_lora_cs_4k")#_1279x852")#original_baseline
 
     # Setup dataloader
     if opts.dataset == 'voc' and not opts.crop_val:
@@ -367,8 +367,8 @@ def main():
         drop_last=True)  # drop_last=True to ignore single-image batches.
     val_loader = data.DataLoader(
         val_dst, batch_size=opts.val_batch_size, shuffle=True, num_workers=2)
-    print("Dataset: %s, Train set: %d, Val set: %d" %
-          (opts.dataset, len(train_dst), len(val_dst)))
+    print("Dataset: %s, Train set: %d, Val set: %d, meta test : %d " %
+          (opts.dataset, len(train_dst), len(val_dst), len(meta_test_dst)))
 
     # Set up model (all models are 'constructed at network.modeling)
     model = network.modeling.__dict__[opts.model](num_classes=opts.num_classes, output_stride=opts.output_stride)

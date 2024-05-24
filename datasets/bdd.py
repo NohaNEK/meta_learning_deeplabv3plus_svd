@@ -153,7 +153,8 @@ class BDD(data.Dataset):
         target = Image.open(self.targets[index])
         
         # id = random.randint(0,len(self.coco_imgs)-1)
-        # # print(self.images[index])
+        print(self.images[index])
+        print(self.targets[index])
         # print(id)
  
         

@@ -173,7 +173,7 @@ def get_dataset(opts):
         meta_test_dst = GTA_SD(root="/media/fahad/Crucial X81/gen_data/",
                                split='all', transform=train_transform)
         val_dst = BDD(root='/media/fahad/Crucial X81/datasets/bdd/',
-                        split='train2k', transform=val_transform)
+                        split='val', transform=val_transform)
         
     return train_dst, meta_test_dst,val_dst 
 def add_gta_infos_in_tensorboard(writer,imgs,labels,outputs_train,meta_test_imgs,meta_test_labels,outputs,cur_itrs,denorm,train_loader):
@@ -245,8 +245,8 @@ def validate(opts, model, loader, device, metrics,denorm=None,writer=None, cur_i
             targets = labels.cpu().numpy()
 
             metrics.update(targets, preds)
-            if i <4 :
-                add_cs_in_tensorboard(writer,images,labels,outputs,cur_itrs,denorm,loader,i)
+            # if i <4 :
+            #     add_cs_in_tensorboard(writer,images,labels,outputs,cur_itrs,denorm,loader,i)
             if ret_samples_ids is not None and i in ret_samples_ids:  # get vis samples
                 ret_samples.append(
                     (images[0].detach().cpu().numpy(), targets[0], preds[0]))

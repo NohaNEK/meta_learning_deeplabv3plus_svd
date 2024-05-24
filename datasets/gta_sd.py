@@ -81,7 +81,7 @@ class GTA_SD(data.Dataset):
         self.transform = transform
 
         if split != 'all' : 
-            self.images_dir = os.path.join(self.root, 'Scene_upscaled_2', split)
+            self.images_dir = os.path.join(self.root, 'Scene', split)
             self.targets_dir = os.path.join(self.root, self.mode, split)
             # self.coco_image = os.path.join("/media/fahad/Crucial X8/deeplabv3plus/coco_ds/train2017")
            
@@ -107,9 +107,9 @@ class GTA_SD(data.Dataset):
         
         else:
             
-            splits = ['s1',  's2']#'val',
+            splits = ['s1',  's2','s3','s4','s5']#'val',
             for split in splits : 
-                self.images_dir = os.path.join(self.root, 'Scene_upscaled_2', split)
+                self.images_dir = os.path.join(self.root, 'Scene', split)
                 self.targets_dir = os.path.join(self.root, self.mode, split)
             #    self.coco_image = os.path.join("/media/fahad/Crucial X8/deeplabv3plus/coco_ds/train2017")
              
