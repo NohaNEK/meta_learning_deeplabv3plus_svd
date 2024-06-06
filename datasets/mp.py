@@ -1,3 +1,4 @@
+
 import json
 import os
 from collections import namedtuple
@@ -8,7 +9,7 @@ from PIL import Image
 import numpy as np
 import random
 
-class GTA_SD(data.Dataset):
+class MP(data.Dataset):
     """Cityscapes <http://www.cityscapes-dataset.com/> Dataset.
     
     **Parameters:**
@@ -72,7 +73,7 @@ class GTA_SD(data.Dataset):
 
     def __init__(self, root, split='train', mode='fine', target_type='semantic', transform=None):
         self.root = os.path.expanduser(root)
-        self.mode = 'label_ids'
+        self.mode = 'trainIds'
         self.target_type = target_type
         self.images = []
         self.targets = []
@@ -81,41 +82,38 @@ class GTA_SD(data.Dataset):
         self.transform = transform
 
         if split != 'all' : 
-            self.images_dir = os.path.join(self.root, 'Scene_1280x720', split)
+            print(split)
+            self.images_dir = os.path.join(self.root, 'Scene', split)
             self.targets_dir = os.path.join(self.root, self.mode, split)
             # self.coco_image = os.path.join("/media/fahad/Crucial X8/deeplabv3plus/coco_ds/train2017")
            
             self.split = split
+            print("os.path.isdir(self.images_dir)",self.images_dir)
+            print("self.targets_dir ",self.targets_dir )
+            print("split",self.split)
             if not os.path.isdir(self.images_dir) or not os.path.isdir(self.targets_dir):
                 raise RuntimeError('Dataset not found or incomplete. Please make sure all required folders for the'
                                 ' specified "split" and "mode" are inside the "root" directory')
             
             for file_name in sorted(os.listdir(self.images_dir)):
-    
                 self.images.append(os.path.join(self.images_dir, file_name))
-                
             
             for file_name in sorted(os.listdir(self.targets_dir)): 
-  
                 self.targets.append(os.path.join(self.targets_dir, file_name))
             # for f_coco in sorted(os.listdir(self.coco_image)):
             #         self.coco_imgs.append(os.path.join(self.coco_image,f_coco))
-            # print(self.targets[0:10])
-            # print(self.images[0:10])
-      
         
         
         else:
             
-            splits = ['s1',  's2','s3','s4','s5']#'val',
+            splits = ['train', 'val']
             for split in splits : 
-                self.images_dir = os.path.join(self.root, 'Scene_1280x720', split)
+                self.images_dir = os.path.join(self.root,'Scene', split)
                 self.targets_dir = os.path.join(self.root, self.mode, split)
             #    self.coco_image = os.path.join("/media/fahad/Crucial X8/deeplabv3plus/coco_ds/train2017")
              
               
                 self.split = split
-
                 if not os.path.isdir(self.images_dir) or not os.path.isdir(self.targets_dir): #or not os.path.isdir(self.coco_image):
                     raise RuntimeError('Dataset not found or incomplete. Please make sure all required folders for the'
                                     ' specified "split" and "mode" are inside the "root" directory')
@@ -151,20 +149,12 @@ class GTA_SD(data.Dataset):
             tuple: (image, target) where target is a tuple of all target types if target_type is a list with more
             than one item. Otherwise target is a json object if target_type="polygon", else the image segmentation.
         """
-        try:
-            image = Image.open(self.images[index]).convert('RGB')
-            
-        except OSError:
-            print(f"Skipping corrupted image: {self.images[index]}")
-        try:
-            target = Image.open(self.targets[index])
-        except OSError:
-            print(f"Skipping corrupted image: {self.targets[index]}")
+        image = Image.open(self.images[index]).convert('RGB')
+        target = Image.open(self.targets[index])
         
         # id = random.randint(0,len(self.coco_imgs)-1)
         # print(self.images[index])
         # print(self.targets[index])
-        
         # print(id)
  
         
@@ -176,7 +166,7 @@ class GTA_SD(data.Dataset):
             image, target = self.transform(image, target)
       
 
-        target = self.encode_target(target)
+        #target = self.encode_target(target)
 
         return image, target#,coco_img
 
